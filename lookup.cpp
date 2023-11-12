@@ -92,10 +92,7 @@ struct find_all
 template<typename T>
 struct type_identity{using type=T;};
 
-template<
-  typename... Containers,
-  typename Data,typename Input
->
+template<typename Containers,typename Data,typename Input>
 void test(
   const char* title,std::initializer_list<const char*> names,
   const Data& data,const Input& input)
@@ -120,7 +117,7 @@ void test(
     std::cout<<n<<";";
 
     boost::mp11::mp_for_each<
-      boost::mp11::mp_list<type_identity<Containers>...>
+      boost::mp11::mp_transform<type_identity,Containers>
     >([&](auto t_){
       using Container=typename decltype(t_)::type;
       Container s(first,last);
@@ -151,12 +148,14 @@ int main()
 
     for(std::size_t i=0;i<N;++i)data.push_back(dist(gen));
 
-    using container_t1=boost::unordered_set<value_type>;
-    using container_t2=boost::unordered_flat_set<value_type>;
-    using container_t3=hd::perfect_set<value_type,hd::mbs_hash>;
-    using container_t4=hd::perfect_set<value_type,hd::mulx_hash>;
-    using container_t5=hd::perfect_set<value_type,hd::xm_hash>;
-    using container_t6=hd::perfect_set<value_type,hd::m_hash>;
+    using containers=boost::mp11::mp_list<
+      boost::unordered_set<value_type>,
+      boost::unordered_flat_set<value_type>,
+      hd::perfect_set<value_type,hd::mbs_hash>,
+      hd::perfect_set<value_type,hd::mulx_hash>,
+      hd::perfect_set<value_type,hd::xm_hash>,
+      hd::perfect_set<value_type,hd::m_hash>
+    >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
@@ -166,28 +165,16 @@ int main()
       "hd::perfect_set m",
     };
 
-    test<
-      container_t1,container_t2,container_t3,
-      container_t4,container_t5,container_t6
-    >
-    ("Successful find, integers",names,data,data);
+    test<containers>("Successful find, integers",names,data,data);
 
     auto input=data;
     for(std::size_t i=0;i<input.size();i+=2)input[i]+=1;
 
-    test<
-      container_t1,container_t2,container_t3,
-      container_t4,container_t5,container_t6
-    >
-    ("50/50 find, integers",names,data,input);
+    test<containers>("50/50 find, integers",names,data,input);
 
     for(std::size_t i=1;i<input.size();i+=2)input[i]+=1;
 
-    test<
-      container_t1,container_t2,container_t3,
-      container_t4,container_t5,container_t6
-    >
-    ("Unsuccessful find, integers",names,data,input);
+    test<containers>("Unsuccessful find, integers",names,data,input);
   }
   {
     using value_type=std::string;
@@ -198,27 +185,26 @@ int main()
 
     for(std::size_t i=0;i<N;++i)data.push_back(make_string(dist(gen)));
 
-    using container_t1=boost::unordered_set<value_type>;
-    using container_t2=boost::unordered_flat_set<value_type>;
-    using container_t3=hd::perfect_set<value_type,hd::mulxp3_string_hash>;
+    using containers=boost::mp11::mp_list<
+      boost::unordered_set<value_type>,
+      boost::unordered_flat_set<value_type>,
+      hd::perfect_set<value_type,hd::mulxp3_string_hash>
+    >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
       "hd::perfect_set"
     };
 
-    test<container_t1,container_t2,container_t3>
-    ("Successful find, strings",names,data,data);
+    test<containers>("Successful find, strings",names,data,data);
 
     auto input=data;
     for(std::size_t i=0;i<input.size();i+=2)input[i][input[i].size()/2]='*';
 
-    test<container_t1,container_t2,container_t3>
-    ("50/50 find, strings",names,data,input);
+    test<containers>("50/50 find, strings",names,data,input);
 
     for(std::size_t i=1;i<input.size();i+=2)input[i][input[i].size()/2]='*';
 
-    test<container_t1,container_t2,container_t3>
-    ("Unsuccessful find, strings",names,data,input);
+    test<containers>("Unsuccessful find, strings",names,data,input);
   }
 }
