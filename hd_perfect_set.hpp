@@ -5,8 +5,6 @@
  * Distributed under the Boost Software License, Version 1.0.
  * (See accompanying file LICENSE_1_0.txt or copy at
  * http://www.boost.org/LICENSE_1_0.txt)
- *
- * See https://www.boost.org/libs/unordered for library home page.
  */
 
 #ifndef HD_PERFECT_SET_HPP
@@ -145,15 +143,17 @@ private:
     size_=static_cast<std::size_t>(std::distance(first,last));
     dsize_index=displacement_size_policy::size_index(size_/lambda);
     displacements.resize(displacement_size_policy::size(dsize_index));
-    size_index=element_size_policy::size_index(size_+1);
+    displacements.shrink_to_fit();
 
-    /* extended_size is a power ot two strictly >= the element array size.
-     * Construction and lookup work as if with a virtual extended array
+    /* extended_size is a power of two strictly larger than the element array
+     * size. Construction and lookup work as if with a virtual extended array
      * whose positions from size_ are taken up. 
      */
 
+    size_index=element_size_policy::size_index(size_+1);
     auto extended_size=element_size_policy::size(size_index);
     elements.resize(size_);
+    elements.shrink_to_fit();
     end_=elements.end();
     bucket_array buckets(displacements.size());
     for(auto it=first;it!=last;++it){
@@ -223,8 +223,7 @@ private:
   std::size_t element_position(
     std::size_t hash,const displacement_info& d)const
   {
-    auto pos=element_size_policy::position(d.first+d.second*hash,size_index);
-    return pos;
+    return element_size_policy::position(d.first+d.second*hash,size_index);
   }
 
   hasher                         h;
