@@ -54,8 +54,10 @@ void resume_timing()
 #include <algorithm>
 #include <boost/bind/bind.hpp>
 #include <boost/core/detail/splitmix64.hpp>
+#include <boost/mp11/algorithm.hpp>
 #include <boost/unordered/unordered_set.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
+#include <initializer_list>
 #include <iostream>
 #include <random>
 #include <string>
@@ -87,16 +89,20 @@ struct find_all
   }
 };
 
+template<typename T>
+struct type_identity{using type=T;};
+
 template<
-  typename Container1,typename Container2,typename Container3,
+  typename... Containers,
   typename Data,typename Input
 >
 void test(
-  const char* title,const Data& data,const Input& input,
-  const char* name1,const char* name2,const char* name3)
+  const char* title,std::initializer_list<const char*> names,
+  const Data& data,const Input& input)
 {
   std::cout<<title<<":"<<std::endl;
-  std::cout<<name1<<";"<<name2<<";"<<name3<<std::endl;
+  for(const auto& name:names)std::cout<<name<<";";
+  std::cout<<std::endl;
 
   unsigned int n0=10,dn=10;
   double       fdn=1.1;
@@ -112,18 +118,17 @@ void test(
     auto ifirst=expanded_input.begin(),ilast=expanded_input.end();
 
     std::cout<<n<<";";
-    {
-      Container1 s(first,last);
-      std::cout<<measure(boost::bind(find_all{},ifirst,ilast,boost::cref(s)))*1E9/m/n<<";";
-    }
-    {
-      Container2 s(first,last);
-      std::cout<<measure(boost::bind(find_all{},ifirst,ilast,boost::cref(s)))*1E9/m/n<<";";
-    }
-    {
-      Container3 s(first,last);
-      std::cout<<measure(boost::bind(find_all{},ifirst,ilast,boost::cref(s)))*1E9/m/n<<"\n";
-    }
+
+    boost::mp11::mp_for_each<
+      boost::mp11::mp_list<type_identity<Containers>...>
+    >([&](auto t_){
+      using Container=typename decltype(t_)::type;
+      Container s(first,last);
+      std::cout
+        <<measure(boost::bind(find_all{},ifirst,ilast,boost::cref(s)))*1E9/m/n
+        <<";";
+    });
+    std::cout<<std::endl;
   }
 }
   
@@ -149,15 +154,40 @@ int main()
     using container_t1=boost::unordered_set<value_type>;
     using container_t2=boost::unordered_flat_set<value_type>;
     using container_t3=hd::perfect_set<value_type,hd::mbs_hash>;
-
-    test<container_t1,container_t2,container_t3>
-    (
-      "Successful find, integers",
-      data,data,
+    using container_t4=hd::perfect_set<value_type,hd::mulx_hash>;
+    using container_t5=hd::perfect_set<value_type,hd::xm_hash>;
+    using container_t6=hd::perfect_set<value_type,hd::m_hash>;
+    auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
-      "hd::perfect_set"
-    );
+      "hd::perfect_set mbs",
+      "hd::perfect_set mulx",
+      "hd::perfect_set xm",
+      "hd::perfect_set m",
+    };
+
+    test<
+      container_t1,container_t2,container_t3,
+      container_t4,container_t5,container_t6
+    >
+    ("Successful find, integers",names,data,data);
+
+    auto input=data;
+    for(std::size_t i=0;i<input.size();i+=2)input[i]+=1;
+
+    test<
+      container_t1,container_t2,container_t3,
+      container_t4,container_t5,container_t6
+    >
+    ("50/50 find, integers",names,data,input);
+
+    for(std::size_t i=1;i<input.size();i+=2)input[i]+=1;
+
+    test<
+      container_t1,container_t2,container_t3,
+      container_t4,container_t5,container_t6
+    >
+    ("Unsuccessful find, integers",names,data,input);
   }
   {
     using value_type=std::string;
@@ -171,14 +201,24 @@ int main()
     using container_t1=boost::unordered_set<value_type>;
     using container_t2=boost::unordered_flat_set<value_type>;
     using container_t3=hd::perfect_set<value_type,hd::mulxp3_string_hash>;
-
-    test<container_t1,container_t2,container_t3>
-    (
-      "Successful find, strings",
-      data,data,
+    auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
       "hd::perfect_set"
-    );
+    };
+
+    test<container_t1,container_t2,container_t3>
+    ("Successful find, strings",names,data,data);
+
+    auto input=data;
+    for(std::size_t i=0;i<input.size();i+=2)input[i][input[i].size()/2]='*';
+
+    test<container_t1,container_t2,container_t3>
+    ("50/50 find, strings",names,data,input);
+
+    for(std::size_t i=1;i<input.size();i+=2)input[i][input[i].size()/2]='*';
+
+    test<container_t1,container_t2,container_t3>
+    ("Unsuccessful find, strings",names,data,input);
   }
 }
