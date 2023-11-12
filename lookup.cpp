@@ -150,6 +150,7 @@ int main()
     using containers=boost::mp11::mp_list<
       boost::unordered_set<value_type>,
       boost::unordered_flat_set<value_type>,
+      hd::perfect_set<value_type>,
       hd::perfect_set<value_type,hd::mbs_hash>,
       hd::perfect_set<value_type,hd::mulx_hash>,
       hd::perfect_set<value_type,hd::xm_hash>,
@@ -158,6 +159,7 @@ int main()
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
+      "hd::perfect_set",
       "hd::perfect_set mbs",
       "hd::perfect_set mulx",
       "hd::perfect_set xm",
