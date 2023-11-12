@@ -55,6 +55,8 @@ void resume_timing()
 #include <boost/bind/bind.hpp>
 #include <boost/core/detail/splitmix64.hpp>
 #include <boost/mp11/algorithm.hpp>
+#include <boost/mp11/list.hpp>
+#include <boost/mp11/utility.hpp>
 #include <boost/unordered/unordered_set.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <initializer_list>
@@ -89,9 +91,6 @@ struct find_all
   }
 };
 
-template<typename T>
-struct type_identity{using type=T;};
-
 template<typename Containers,typename Data,typename Input>
 void test(
   const char* title,std::initializer_list<const char*> names,
@@ -117,7 +116,7 @@ void test(
     std::cout<<n<<";";
 
     boost::mp11::mp_for_each<
-      boost::mp11::mp_transform<type_identity,Containers>
+      boost::mp11::mp_transform<boost::mp11::mp_identity,Containers>
     >([&](auto t_){
       using Container=typename decltype(t_)::type;
       Container s(first,last);
