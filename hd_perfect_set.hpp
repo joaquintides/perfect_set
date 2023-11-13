@@ -171,19 +171,15 @@ private:
 
     boost::dynamic_bitset<> mask(size_),mask1(size_);
 
-    for(std::size_t si=0;si<buckets.size();++si){
-      auto i=sorted_bucket_indices[si];
-      if(buckets[i].empty())return true; /* remaining buckets also empty */
+    for(std::size_t i=0;i<buckets.size();++i){
+      const auto& bucket=buckets[sorted_bucket_indices[i]];
+      if(bucket.empty())return true; /* remaining buckets also empty */
 
-      for(std::size_t j=0;j<buckets[i].size();++j){
+      for(std::size_t j=0;j<bucket.size();++j){
         for(std::size_t k=0;k<j;++k){
-          if(buckets[i][j].hash==buckets[i][k].hash){
-            if(pred(*(buckets[i][j].it),*(buckets[i][k].it))){
-              throw duplicate_element{};
-            }
-            else{
-              throw duplicate_hash{};
-            }
+          if(bucket[j].hash==bucket[k].hash){
+            if(pred(*(bucket[j].it),*(bucket[k].it)))throw duplicate_element{};
+            else                                     throw duplicate_hash{};
           }
         }
       }
@@ -194,16 +190,16 @@ private:
           displacement_info d={d0<<size_index,(d1<<32)+1};
 
           mask1=mask;
-          for(std::size_t j=0;j<buckets[i].size();++j){
-            auto pos=element_position(buckets[i][j].hash,d);
+          for(std::size_t j=0;j<bucket.size();++j){
+            auto pos=element_position(bucket[j].hash,d);
             if(pos>=size_||mask1[pos])goto next_displacement;
             mask1[pos]=1;
           }
           displacements[i]=d;
           mask=mask1;
-          for(std::size_t j=0;j<buckets[i].size();++j){
-            auto pos=element_position(buckets[i][j].hash,d);
-            elements[pos]=*(buckets[i][j].it);
+          for(std::size_t j=0;j<bucket.size();++j){
+            auto pos=element_position(bucket[j].hash,d);
+            elements[pos]=*(bucket[j].it);
           }
           goto next_bucket;
           next_displacement:;
