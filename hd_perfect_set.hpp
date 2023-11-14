@@ -184,8 +184,8 @@ private:
         }
       }
 
-      for(std::size_t d1=0;d1<extended_size;++d1){
-        for(std::size_t d0=0;d0<extended_size;++d0){
+      for(std::size_t d0=0;d0<extended_size;++d0){
+        for(std::size_t d1=0;d1<extended_size;++d1){
           /* this calculation critically depends on displacement_size_policy */
           displacement_info d={d0<<size_index,(d1<<32)+1};
 
