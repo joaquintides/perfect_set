@@ -18,6 +18,7 @@
 #include <boost/unordered/detail/mulx.hpp>
 #include <boost/unordered/detail/xmx.hpp>
 #include <climits>
+#include <numeric>
 #include <utility>
 #include <stdexcept>
 #include <string>
