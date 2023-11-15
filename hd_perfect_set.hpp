@@ -124,7 +124,6 @@ public:
     auto hash=h(x);
     auto pos=element_position(hash,displacements[displacement_position(hash)]);
     if(pos>=size_||!pred(x,elements[pos]))pos=size_;
-    else BOOST_UNORDERED_ASSUME(pos!=size_);
     return elements.begin()+pos;
   }
 
