@@ -116,7 +116,7 @@ public:
   }
 
   iterator begin()const{return elements.begin();}
-  iterator end()const{return end_;}
+  iterator end()const{return elements.begin()+size_;}
 
   template<typename Key>
   BOOST_FORCEINLINE iterator find(const Key& x)const
@@ -124,6 +124,7 @@ public:
     auto hash=h(x);
     auto pos=element_position(hash,displacements[displacement_position(hash)]);
     if(pos>=size_||!pred(x,elements[pos]))pos=size_;
+    else BOOST_UNORDERED_ASSUME(pos!=size_);
     return elements.begin()+pos;
   }
 
@@ -155,7 +156,6 @@ private:
     auto extended_size=element_size_policy::size(size_index);
     elements.resize(size_);
     elements.shrink_to_fit();
-    end_=elements.end();
     bucket_array buckets(displacements.size());
     for(auto it=first;it!=last;++it){
       auto hash=h(*it);
@@ -230,7 +230,6 @@ private:
   std::vector<displacement_info> displacements;
   std::size_t                    size_index;
   element_array                  elements;
-  iterator                       end_;
 };
 
 /* some mixers */
