@@ -169,7 +169,8 @@ private:
         return buckets[i1].size()>buckets[i2].size();
       });
 
-    boost::dynamic_bitset<> mask(size_),mask1(size_);
+    boost::dynamic_bitset<>  mask(size_);
+    std::vector<std::size_t> bucket_positions;
 
     for(std::size_t i=0;i<buckets.size();++i){
       const auto& bucket=buckets[sorted_bucket_indices[i]];
@@ -189,17 +190,22 @@ private:
           /* this calculation critically depends on displacement_size_policy */
           displacement_info d={d0<<size_index,(d1<<32)+1};
 
-          mask1=mask;
+          bucket_positions.clear();
           for(std::size_t j=0;j<bucket.size();++j){
             auto pos=element_position(bucket[j].hash,d);
-            if(pos>=size_||mask1[pos])goto next_displacement;
-            mask1[pos]=1;
+            if(pos>=size_||mask[pos]||
+               std::find(
+                 bucket_positions.begin(),
+                 bucket_positions.end(),pos)!=bucket_positions.end()){
+              goto next_displacement;
+            }
+            bucket_positions.push_back(pos);
           }
           displacements[i]=d;
-          mask=mask1;
           for(std::size_t j=0;j<bucket.size();++j){
             auto pos=element_position(bucket[j].hash,d);
             elements[pos]=*(bucket[j].it);
+            mask[pos]=1;
           }
           goto next_bucket;
           next_displacement:;
