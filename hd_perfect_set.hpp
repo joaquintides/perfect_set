@@ -201,7 +201,7 @@ private:
             }
             bucket_positions.push_back(pos);
           }
-          displacements[i]=d;
+          displacements[sorted_bucket_indices[i]]=d;
           for(std::size_t j=0;j<bucket.size();++j){
             auto pos=element_position(bucket[j].hash,d);
             elements[pos]=*(bucket[j].it);
