@@ -25,6 +25,10 @@
 #include <vector>
 #include "mulxp_hash.hpp"
 
+#ifdef HP_PERFECT_SET_TRACE
+#include <iostream>
+#endif
+
 namespace hd{
 
 struct construction_failure:std::runtime_error
@@ -130,16 +134,24 @@ public:
 private:
   using displacement_info=std::pair<std::size_t,std::size_t>;
   template<typename FwdIterator>
+  struct bucket_node
+  {
+    FwdIterator  it;
+    std::size_t  hash;
+    bucket_node *next=nullptr;
+  };
+  template<typename FwdIterator>
   struct bucket_entry
   {
-    FwdIterator it;
-    std::size_t hash;
+    bucket_node<FwdIterator> *begin=nullptr;
+    std::size_t               size=0;
   };
 
   template<typename FwdIterator>
   bool construct(FwdIterator first,FwdIterator last,std::size_t lambda)
   {
-    using bucket_array=std::vector<std::vector<bucket_entry<FwdIterator>>>;
+    using bucket_node_array=std::vector<bucket_node<FwdIterator>>;
+    using bucket_array=std::vector<bucket_entry<FwdIterator>>;
 
     size_=static_cast<std::size_t>(std::distance(first,last));
     dsize_index=displacement_size_policy::size_index(size_/lambda);
@@ -155,10 +167,24 @@ private:
     auto extended_size=element_size_policy::size(size_index);
     elements.resize(size_);
     elements.shrink_to_fit();
-    bucket_array buckets(displacements.size());
+
+    bucket_node_array bucket_nodes;
+    bucket_array      buckets(displacements.size());
+    bucket_nodes.reserve(size_);
     for(auto it=first;it!=last;++it){
-      auto hash=h(*it);
-      buckets[displacement_position(hash)].push_back({it,hash});
+      auto   hash=h(*it);
+      auto  &root=buckets[displacement_position(hash)];
+      auto **ppnode=&root.begin;
+      while(*ppnode){
+        if((*ppnode)->hash==hash){
+          if(pred(*((*ppnode)->it),*(it)))throw duplicate_element{};
+          else                            throw duplicate_hash{};
+        }
+        ppnode=&(*ppnode)->next;
+      }
+      bucket_nodes.push_back({it,hash});
+      *ppnode=&bucket_nodes.back();
+      ++root.size;
     }
 
     std::vector<std::size_t> sorted_bucket_indices(buckets.size());
@@ -166,24 +192,26 @@ private:
     std::sort(
       sorted_bucket_indices.begin(),sorted_bucket_indices.end(),
       [&](std::size_t i1,std::size_t i2){
-        return buckets[i1].size()>buckets[i2].size();
+        return buckets[i1].size>buckets[i2].size;
       });
 
-    boost::dynamic_bitset<>  mask(size_);
+    boost::dynamic_bitset<>  mask;
+    mask.resize(size_,true); /* true --> available */
     std::vector<std::size_t> bucket_positions;
+#ifdef HP_PERFECT_SET_TRACE
+    std::size_t num_inserted=0;
+#endif
 
-    for(std::size_t i=0;i<buckets.size();++i){
+#if 1
+    std::size_t i=0;
+    for(;i<buckets.size();++i){
       const auto& bucket=buckets[sorted_bucket_indices[i]];
-      if(bucket.empty())return true; /* remaining buckets also empty */
+      if(bucket.size<=1)break; /* on to buckets of size 1 */
 
-      for(std::size_t j=0;j<bucket.size();++j){
-        for(std::size_t k=0;k<j;++k){
-          if(bucket[j].hash==bucket[k].hash){
-            if(pred(*(bucket[j].it),*(bucket[k].it)))throw duplicate_element{};
-            else                                     throw duplicate_hash{};
-          }
-        }
-      }
+#ifdef HP_PERFECT_SET_TRACE
+      if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
+      num_inserted+=bucket.size;
+#endif
 
       for(std::size_t d0=0;d0<extended_size;++d0){
         for(std::size_t d1=0;d1<extended_size;++d1){
@@ -191,9 +219,9 @@ private:
           displacement_info d={d0<<size_index,(d1<<32)+1};
 
           bucket_positions.clear();
-          for(std::size_t j=0;j<bucket.size();++j){
-            auto pos=element_position(bucket[j].hash,d);
-            if(pos>=size_||mask[pos]||
+          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
+            auto pos=element_position(pnode->hash,d);
+            if(pos>=size_||!mask[pos]||
                std::find(
                  bucket_positions.begin(),
                  bucket_positions.end(),pos)!=bucket_positions.end()){
@@ -202,10 +230,10 @@ private:
             bucket_positions.push_back(pos);
           }
           displacements[sorted_bucket_indices[i]]=d;
-          for(std::size_t j=0;j<bucket.size();++j){
-            auto pos=element_position(bucket[j].hash,d);
-            elements[pos]=*(bucket[j].it);
-            mask[pos]=1;
+          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
+            auto pos=element_position(pnode->hash,d);
+            elements[pos]=*(pnode->it);
+            mask[pos]=false;
           }
           goto next_bucket;
           next_displacement:;
@@ -214,6 +242,72 @@ private:
       return false;
     next_bucket:;
     }
+#else
+    std::size_t i=0;
+    for(;i<buckets.size();++i){
+      const auto& bucket=buckets[sorted_bucket_indices[i]];
+      if(bucket.size<=1)break; /* on to buckets of size 1 */
+
+#ifdef HP_PERFECT_SET_TRACE
+      if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
+      num_inserted+=bucket.size;
+#endif
+
+      for(std::size_t d1=0;d1<extended_size;++d1){
+        /* this calculation critically depends on displacement_size_policy */
+        displacement_info d={0,(d1<<32)+1};
+
+        bucket_positions.clear();
+        for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
+          auto pos0=element_position(pnode->hash,d);
+          if(std::find(
+                bucket_positions.begin(),
+                bucket_positions.end(),pos0)!=bucket_positions.end()){
+            goto next_d1;
+          }
+          bucket_positions.push_back(pos0);
+        }
+        for(std::size_t d0=0;d0<extended_size;++d0){
+          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
+            auto pos=element_position(pnode->hash,d);
+            if(pos>=size_||!mask[pos])goto next_d0;
+          }
+          displacements[sorted_bucket_indices[i]]=d;
+          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
+            auto pos=element_position(pnode->hash,d);
+            elements[pos]=*(pnode->it);
+            mask[pos]=false;
+          }
+          goto next_bucket;
+          next_d0:
+          /* this calculation critically depends on displacement_size_policy */
+          d.first+=std::size_t(1)<<size_index;
+        }
+        next_d1:;
+      }
+      return false;
+    next_bucket:;
+    }
+#endif
+
+    /* buckets of size <=1 */
+
+    auto pos=mask.find_first();
+    for(;i<buckets.size();++i){
+      const auto& bucket=buckets[sorted_bucket_indices[i]];
+      if(!bucket.size)break; /* remaining buckets also empty */
+
+#ifdef HP_PERFECT_SET_TRACE
+      if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
+      num_inserted+=bucket.size;
+#endif
+      /* this calculation critically depends on displacement_size_policy */
+      displacements[sorted_bucket_indices[i]]={pos<<size_index,0};
+      elements[pos]=*(bucket.begin->it);
+      mask[pos]=false;
+      pos=mask.find_next(pos);
+    }
+
     return true;
   }
 
