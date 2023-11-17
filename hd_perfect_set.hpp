@@ -158,12 +158,12 @@ private:
     displacements.resize(displacement_size_policy::size(dsize_index));
     displacements.shrink_to_fit();
 
-    /* extended_size is a power of two strictly larger than the element array
-     * size. Construction and lookup work as if with a virtual extended array
-     * whose positions from size_ are taken up. 
+    /* extended_size is a power of two strictly no smaller than the element
+     * array size. Construction and lookup work as if with a virtual extended
+     * array whose positions from size_ are taken up. 
      */
 
-    size_index=element_size_policy::size_index(size_+1);
+    size_index=element_size_policy::size_index(size_);
     auto extended_size=element_size_policy::size(size_index);
     elements.resize(size_);
     elements.shrink_to_fit();
@@ -222,9 +222,8 @@ private:
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
             auto pos=element_position(pnode->hash,d);
             if(pos>=size_||!mask[pos]||
-               std::find(
-                 bucket_positions.begin(),
-                 bucket_positions.end(),pos)!=bucket_positions.end()){
+               std::find(bucket_positions.begin(),bucket_positions.end(),pos)!=
+               bucket_positions.end()){
               goto next_displacement;
             }
             bucket_positions.push_back(pos);
@@ -243,6 +242,7 @@ private:
     next_bucket:;
     }
 #else
+    std::vector<std::size_t> bucket_muls;
     std::size_t i=0;
     for(;i<buckets.size();++i){
       const auto& bucket=buckets[sorted_bucket_indices[i]];
@@ -254,23 +254,24 @@ private:
 #endif
 
       for(std::size_t d1=0;d1<extended_size;++d1){
-        /* this calculation critically depends on displacement_size_policy */
         displacement_info d={0,(d1<<32)+1};
-
-        bucket_positions.clear();
+        bucket_muls.clear();
         for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
-          auto pos0=element_position(pnode->hash,d);
-          if(std::find(
-                bucket_positions.begin(),
-                bucket_positions.end(),pos0)!=bucket_positions.end()){
-            goto next_d1;
-          }
-          bucket_positions.push_back(pos0);
+          bucket_muls.push_back(pnode->hash*d.second);
         }
-        for(std::size_t d0=0;d0<extended_size;++d0){
-          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
-            auto pos=element_position(pnode->hash,d);
-            if(pos>=size_||!mask[pos])goto next_d0;
+
+        for(auto d0=mask.find_first();d0<size_;d0=mask.find_next(d0)){
+          d.first=(d0-bucket_muls[0])<<size_index;
+          bucket_positions.clear();
+          for(auto mul:bucket_muls){
+            auto pos=element_size_policy::position(d.first+mul,size_index);
+            if(pos>=size_||!mask[pos]||
+               std::find(
+                 bucket_positions.begin(),
+                 bucket_positions.end(),pos)!=bucket_positions.end()){
+              goto next_displacement;
+            }
+            bucket_positions.push_back(pos);
           }
           displacements[sorted_bucket_indices[i]]=d;
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
@@ -279,11 +280,8 @@ private:
             mask[pos]=false;
           }
           goto next_bucket;
-          next_d0:
-          /* this calculation critically depends on displacement_size_policy */
-          d.first+=std::size_t(1)<<size_index;
+          next_displacement:;
         }
-        next_d1:;
       }
       return false;
     next_bucket:;
