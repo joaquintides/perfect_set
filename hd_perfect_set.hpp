@@ -25,7 +25,7 @@
 #include <vector>
 #include "mulxp_hash.hpp"
 
-#ifdef HP_PERFECT_SET_TRACE
+#ifdef HD_PERFECT_SET_TRACE
 #include <iostream>
 #endif
 
@@ -198,7 +198,7 @@ private:
     boost::dynamic_bitset<>  mask;
     mask.resize(size_,true); /* true --> available */
     std::vector<std::size_t> bucket_positions;
-#ifdef HP_PERFECT_SET_TRACE
+#ifdef HD_PERFECT_SET_TRACE
     std::size_t num_inserted=0;
 #endif
 
@@ -208,7 +208,7 @@ private:
       const auto& bucket=buckets[sorted_bucket_indices[i]];
       if(bucket.size<=1)break; /* on to buckets of size 1 */
 
-#ifdef HP_PERFECT_SET_TRACE
+#ifdef HD_PERFECT_SET_TRACE
       if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
       num_inserted+=bucket.size;
 #endif
@@ -221,18 +221,20 @@ private:
           bucket_positions.clear();
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
             auto pos=element_position(pnode->hash,d);
-            if(pos>=size_||!mask[pos]||
-               std::find(bucket_positions.begin(),bucket_positions.end(),pos)!=
-               bucket_positions.end()){
+            if(pos>=size_||!mask[pos]){
+              for(auto pos2:bucket_positions)mask[pos2]=true;
               goto next_displacement;
             }
+            mask[pos]=false;
             bucket_positions.push_back(pos);
           }
           displacements[sorted_bucket_indices[i]]=d;
-          for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
-            auto pos=element_position(pnode->hash,d);
-            elements[pos]=*(pnode->it);
-            mask[pos]=false;
+          {
+            auto pnode=bucket.begin;
+            for(auto pos:bucket_positions){
+              elements[pos]=*(pnode->it);
+              pnode=pnode->next;
+            }
           }
           goto next_bucket;
           next_displacement:;
@@ -248,7 +250,7 @@ private:
       const auto& bucket=buckets[sorted_bucket_indices[i]];
       if(bucket.size<=1)break; /* on to buckets of size 1 */
 
-#ifdef HP_PERFECT_SET_TRACE
+#ifdef HD_PERFECT_SET_TRACE
       if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
       num_inserted+=bucket.size;
 #endif
@@ -295,7 +297,7 @@ private:
       const auto& bucket=buckets[sorted_bucket_indices[i]];
       if(!bucket.size)break; /* remaining buckets also empty */
 
-#ifdef HP_PERFECT_SET_TRACE
+#ifdef HD_PERFECT_SET_TRACE
       if(i%10000==0)std::cout<<i<<":\t"<<bucket.size<<"\t"<<num_inserted<<"\n";
       num_inserted+=bucket.size;
 #endif
