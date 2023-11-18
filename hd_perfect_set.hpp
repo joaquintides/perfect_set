@@ -51,20 +51,20 @@ struct duplicate_hash:std::runtime_error
 
 struct pow2_lower_size_policy
 {
-  static inline std::size_t size_index(std::size_t n)
+  static constexpr inline std::size_t size_index(std::size_t n)
   {
     auto exp=n<=2?1:((std::size_t)(boost::core::bit_width(n-1)));
     return (std::size_t(1)<<exp)-1;
   }
 
-  static inline std::size_t size(std::size_t size_index_)
+  static constexpr  inline std::size_t size(std::size_t size_index_)
   {
      return size_index_+1;
   }
     
   static constexpr std::size_t min_size(){return 2;}
 
-  static inline std::size_t position(std::size_t hash,std::size_t size_index_)
+  static constexpr inline std::size_t position(std::size_t hash,std::size_t size_index_)
   {
     return hash&size_index_;
   }
@@ -72,20 +72,20 @@ struct pow2_lower_size_policy
 
 struct pow2_upper_size_policy
 {
-  static inline std::size_t size_index(std::size_t n)
+  static constexpr inline std::size_t size_index(std::size_t n)
   {
     return sizeof(std::size_t)*CHAR_BIT-
       (n<=2?1:((std::size_t)(boost::core::bit_width(n-1))));
   }
 
-  static inline std::size_t size(std::size_t size_index_)
+  static constexpr inline std::size_t size(std::size_t size_index_)
   {
      return std::size_t(1)<<(sizeof(std::size_t)*CHAR_BIT-size_index_);  
   }
     
   static constexpr std::size_t min_size(){return 2;}
 
-  static inline std::size_t position(std::size_t hash,std::size_t size_index_)
+  static constexpr inline std::size_t position(std::size_t hash,std::size_t size_index_)
   {
     return hash>>size_index_;
   }
@@ -351,7 +351,7 @@ struct xmx_hash
 
 struct xm_hash
 {
-  std::size_t operator()(std::size_t x)const
+  std::size_t constexpr operator()(std::size_t x)const
   {
     x ^= x >> 23;
     x *= 0xff51afd7ed558ccdull;
@@ -362,7 +362,7 @@ struct xm_hash
 
 struct m_hash
 {
-  std::size_t operator()(std::size_t x)const
+  std::size_t constexpr operator()(std::size_t x)const
   {
     x *= 0xff51afd7ed558ccdull;
     return x;
@@ -371,7 +371,7 @@ struct m_hash
 
 struct mbs_hash
 {
-  std::size_t operator()(std::size_t x)const
+  std::size_t constexpr operator()(std::size_t x)const
   {
     x *= 0xff51afd7ed558ccdull;
     return boost::core::byteswap(x);
