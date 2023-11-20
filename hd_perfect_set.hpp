@@ -22,6 +22,7 @@
 #include <utility>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <vector>
 #include "mulxp_hash.hpp"
 
@@ -378,11 +379,52 @@ struct mbs_hash
   }
 };
 
+constexpr inline std::uint64_t read64le( char const * p )
+{
+    if( std::is_constant_evaluated() )
+    {
+      std::uint64_t w =
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[0] ) ) |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[1] ) ) <<  8 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[2] ) ) << 16 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[3] ) ) << 24 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[4] ) ) << 32 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[5] ) ) << 40 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[6] ) ) << 48 |
+          static_cast<std::uint64_t>( static_cast<unsigned char>( p[7] ) ) << 56;
+
+      return w;
+    }
+    else
+    {
+      return ::read64le( reinterpret_cast<unsigned char const *>(p) );
+    }
+}
+
+constexpr inline std::uint32_t read32le( char const* p )
+{
+    if( std::is_constant_evaluated() )
+    {
+      std::uint32_t w =
+          static_cast<std::uint32_t>( static_cast<unsigned char>( p[0] ) ) |
+          static_cast<std::uint32_t>( static_cast<unsigned char>( p[1] ) ) <<  8 |
+          static_cast<std::uint32_t>( static_cast<unsigned char>( p[2] ) ) << 16 |
+          static_cast<std::uint32_t>( static_cast<unsigned char>( p[3] ) ) << 24;
+
+      return w;
+    }
+    else
+    {
+      return ::read32le( reinterpret_cast<unsigned char const *>(p) );
+    }
+}
+
 struct mulxp3_string_hash
 {
-  inline std::uint64_t operator()(const std::string& x,std::uint64_t seed = 0) const
+  template<typename String>
+  constexpr inline std::uint64_t operator()(const String& x,std::uint64_t seed = 0) const
   {
-      unsigned char const * p = reinterpret_cast<unsigned char const *>(x.data());
+      char const * p = x.data();
       std::size_t n = x.size();
 
       std::uint64_t const q = 0x9e3779b97f4a7c15ULL;
@@ -421,7 +463,9 @@ struct mulxp3_string_hash
               std::size_t const x1 = ( n - 1 ) & 2; // 1: 0, 2: 0, 3: 2
               std::size_t const x2 = n >> 1;        // 1: 0, 2: 1, 3: 1
 
-              v1 = (std::uint64_t)p[ x1 ] << x1 * 8 | (std::uint64_t)p[ x2 ] << x2 * 8 | (std::uint64_t)p[ 0 ];
+              v1 = (std::uint64_t)static_cast<unsigned char>(p[ x1 ]) << x1 * 8 | 
+                   (std::uint64_t)static_cast<unsigned char>(p[ x2 ]) << x2 * 8 | 
+                   (std::uint64_t)static_cast<unsigned char>(p[ 0 ]);
           }
 
           w += q;

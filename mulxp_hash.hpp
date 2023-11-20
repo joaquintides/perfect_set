@@ -33,7 +33,7 @@ __forceinline std::uint64_t mulx( std::uint64_t x, std::uint64_t y )
 
 #elif defined(__SIZEOF_INT128__)
 
-inline std::uint64_t mulx( std::uint64_t x, std::uint64_t y )
+constexpr inline std::uint64_t mulx( std::uint64_t x, std::uint64_t y )
 {
     __uint128_t r = (__uint128_t)x * y;
     return (std::uint64_t)r ^ (std::uint64_t)( r >> 64 );
