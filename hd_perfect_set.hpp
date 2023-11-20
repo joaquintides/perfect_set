@@ -309,6 +309,11 @@ private:
       pos=mask.find_next(pos);
     }
 
+    for(;i<buckets.size();++i){
+      /* send all empty buckets off range */
+      displacements[sorted_bucket_indices[i]]={~std::size_t(0),0};
+    }
+
     return true;
   }
 
