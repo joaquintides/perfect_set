@@ -64,6 +64,7 @@ void resume_timing()
 #include <random>
 #include <string>
 #include "hd_perfect_set.hpp"
+#include "fks_perfect_set.hpp"
 
 struct splitmix64_urng:boost::detail::splitmix64
 {
@@ -105,7 +106,7 @@ void test(
   for(unsigned int n=n0;n<=data.size();n+=dn,dn=(unsigned int)(dn*fdn)){
     auto  first=data.begin(),last=data.begin()+n;
     Input expanded_input;
-    auto  m=std::max(1,(int)(1000/n));
+    auto  m=(std::max)(1,(int)(1000/n));
     for(auto i=m;i--;){
       expanded_input.insert(expanded_input.end(),input.begin(),input.begin()+n);
     }
@@ -147,23 +148,29 @@ int main()
 
     for(std::size_t i=0;i<N;++i)data.push_back(dist(gen));
 
+#if 0
+    std::cout<<find_all{}(data.begin(),data.end(),hd::perfect_set<value_type>(data.begin(),data.end()))<<"\n";
+    auto fksps=fks::perfect_set<value_type,hd::m_hash>(data.begin(),data.end());
+    std::cout<<find_all{}(data.begin(),data.end(),fksps)<<", "<<fksps.capacity()<<"\n";
+    auto fkspsnm=fks::perfect_set<value_type,hd::m_hash,std::equal_to<value_type>,false>(data.begin(),data.end());
+    std::cout<<find_all{}(data.begin(),data.end(),fkspsnm)<<", "<<fkspsnm.capacity()<<"\n";
+#endif
+
     using containers=boost::mp11::mp_list<
       boost::unordered_set<value_type>,
       boost::unordered_flat_set<value_type>,
-      hd::perfect_set<value_type>,
       hd::perfect_set<value_type,hd::mbs_hash>,
-      hd::perfect_set<value_type,hd::mulx_hash>,
-      hd::perfect_set<value_type,hd::xm_hash>,
-      hd::perfect_set<value_type,hd::m_hash>
+      fks::perfect_set<value_type,hd::m_hash>,
+      fks::perfect_set<
+        value_type,hd::m_hash,std::equal_to<value_type>,false /* no mask*/
+      >
     >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
-      "hd::perfect_set",
       "hd::perfect_set mbs",
-      "hd::perfect_set mulx",
-      "hd::perfect_set xm",
-      "hd::perfect_set m",
+      "fks::perfect_set m",
+      "fks::perfect_set m no mask",
     };
 
     test<containers>("Successful find, integers",names,data,data);
@@ -189,12 +196,18 @@ int main()
     using containers=boost::mp11::mp_list<
       boost::unordered_set<value_type>,
       boost::unordered_flat_set<value_type>,
-      hd::perfect_set<value_type,hd::mulxp3_string_hash>
+      hd::perfect_set<value_type,hd::mulxp3_string_hash>,
+      fks::perfect_set<value_type,hd::mulxp3_string_hash>,
+      fks::perfect_set<
+        value_type,hd::mulxp3_string_hash,
+        std::equal_to<value_type>,false> /* no mask */
     >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
-      "hd::perfect_set"
+      "hd::perfect_set",
+      "fks::perfect_set",
+      "fks::perfect_set no mask",
     };
 
     test<containers>("Successful find, strings",names,data,data);
