@@ -133,7 +133,19 @@ public:
   }
 
 private:
+#if defined(__SIZEOF_INT128__)
+  struct displacement_info
+  {
+    displacement_info(std::size_t first=0,std::size_t second=0):
+      m{(__uint128_t(first)<<64)+second}
+      {}
+
+    __uint128_t m;
+  };
+#else
   using displacement_info=std::pair<std::size_t,std::size_t>;
+#endif
+
   template<typename FwdIterator>
   struct bucket_node
   {
@@ -325,7 +337,13 @@ private:
   std::size_t element_position(
     std::size_t hash,const displacement_info& d)const
   {
+#if defined(__SIZEOF_INT128__)
+    __uint128_t a=1+(__uint128_t(hash)<<64);
+    __uint128_t b=a*d.m;
+    return element_size_policy::position(std::size_t(b>>64),size_index);
+#else
     return element_size_policy::position(d.first+d.second*hash,size_index);
+#endif
   }
 
   hasher                         h;
