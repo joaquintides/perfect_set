@@ -15,6 +15,7 @@
 #include <boost/container_hash/hash.hpp>
 #include <boost/core/bit.hpp>
 #include <boost/dynamic_bitset.hpp>
+#include <boost/unordered/detail/foa/core.hpp> /* BOOST_UNORDERED_ASSUME */
 #include <boost/unordered/detail/mulx.hpp>
 #include <boost/unordered/detail/xmx.hpp>
 #include <climits>
