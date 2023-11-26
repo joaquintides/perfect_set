@@ -143,7 +143,13 @@ public:
 private:
   struct jump_info
   {
-    unsigned char shift=0,width=0;
+    jump_info(std::size_t shift=0,std::size_t width=0):
+      width_shift{
+        ((~(std::size_t(-1)<<width))<<8)
+        +shift
+      }{}
+
+    std::size_t width_shift=0;
   };
   template<typename FwdIterator>
   struct bucket_node
@@ -207,7 +213,7 @@ private:
       positions[i]=capacity_;
       auto& jmp=jumps[i];      
 
-      for(unsigned char wd=0;wd<64;++wd){
+      for(unsigned char wd=0;wd<56;++wd){
         for(unsigned char sh=0;sh<64;++sh){
           offsets.clear();
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
@@ -217,8 +223,7 @@ private:
             }
             offsets.push_back(off);
           }
-          jmp.shift=sh;
-          jmp.width=wd;
+          jmp={sh,wd};
           capacity_+=std::size_t(1)<<wd;
           elements.resize(capacity_);
           mask.resize(capacity_);
@@ -245,9 +250,9 @@ private:
     return jump_size_policy::position(hash,jsize_index);
   }
 
-  std::size_t offset(std::size_t hash,const jump_info& jmp)const
+  std::size_t offset(std::size_t hash,jump_info jmp)const
   {
-    return (hash>>jmp.shift)&~((std::size_t(-1)<<jmp.width));
+    return (hash>>(unsigned char)jmp.width_shift)&(jmp.width_shift>>8);
   }
 
   std::size_t element_position(
