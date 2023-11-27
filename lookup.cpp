@@ -151,26 +151,20 @@ int main()
 #if 0
     std::cout<<find_all{}(data.begin(),data.end(),hd::perfect_set<value_type>(data.begin(),data.end()))<<"\n";
     auto fksps=fks::perfect_set<value_type,hd::m_hash>(data.begin(),data.end());
-    std::cout<<find_all{}(data.begin(),data.end(),fksps)<<", "<<fksps.capacity()<<"\n";
-    auto fkspsnm=fks::perfect_set<value_type,hd::m_hash,std::equal_to<value_type>,false>(data.begin(),data.end());
-    std::cout<<find_all{}(data.begin(),data.end(),fkspsnm)<<", "<<fkspsnm.capacity()<<"\n";
+    std::cout<<find_all{}(data.begin(),data.end(),fksps)<<"\n";
 #endif
 
     using containers=boost::mp11::mp_list<
       boost::unordered_set<value_type>,
       boost::unordered_flat_set<value_type>,
       hd::perfect_set<value_type,hd::mbs_hash>,
-      fks::perfect_set<value_type,hd::m_hash>,
-      fks::perfect_set<
-        value_type,hd::m_hash,std::equal_to<value_type>,false /* no mask*/
-      >
+      fks::perfect_set<value_type,hd::m_hash>
     >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
       "hd::perfect_set mbs",
       "fks::perfect_set m",
-      "fks::perfect_set m no mask",
     };
 
     test<containers>("Successful find, integers",names,data,data);
@@ -197,17 +191,13 @@ int main()
       boost::unordered_set<value_type>,
       boost::unordered_flat_set<value_type>,
       hd::perfect_set<value_type,hd::mulxp3_string_hash>,
-      fks::perfect_set<value_type,hd::mulxp3_string_hash>,
-      fks::perfect_set<
-        value_type,hd::mulxp3_string_hash,
-        std::equal_to<value_type>,false> /* no mask */
+      fks::perfect_set<value_type,hd::mulxp3_string_hash>
     >;
     auto names={
       "boost::unordered_set",
       "boost::unordered_flat_set",
       "hd::perfect_set",
       "fks::perfect_set",
-      "fks::perfect_set no mask",
     };
 
     test<containers>("Successful find, strings",names,data,data);
