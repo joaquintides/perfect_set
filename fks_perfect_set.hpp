@@ -137,10 +137,11 @@ private:
   {
     void set(std::size_t shift,std::size_t width)
     {
-      ws=((~(std::size_t(-1)<<width))<<8)+shift;
+      shl=64-shift-width;
+      shr=64-width;
     }
 
-    std::size_t ws=0;
+    unsigned char shl=0,shr=64;
   };
   template<typename FwdIterator>
   struct bucket_node
@@ -211,7 +212,7 @@ private:
                   min_wd=boost::core::popcount(max_off);
 
       for(unsigned char sh=0;sh<=64-min_wd;++sh){
-        for(unsigned char wd=min_wd;wd<56;++wd){
+        for(unsigned char wd=min_wd;wd<64;++wd){
           jump_info jmp;
           jmp.set(sh,wd);
 
@@ -259,7 +260,7 @@ private:
 
   static inline std::size_t element_offset(std::size_t hash,const jump_info& jmp)
   {
-    return (hash>>(unsigned char)jmp.ws)&(jmp.ws>>8);
+    return (hash<<jmp.shl)>>jmp.shr;
   }
 
   static inline std::size_t element_position(
