@@ -128,7 +128,7 @@ public:
   {
     auto hash=h(x);
     auto jpos=jump_position(hash);
-    auto pos=element_position(hash,positions[jpos],jumps[jpos]);
+    auto pos=element_position(hash,jumps[jpos]);
     if constexpr(UseMask){
       if(!mask[pos]||!pred(x,elements[pos]))pos=capacity_;
       else BOOST_UNORDERED_ASSUME(pos!=capacity_);
@@ -143,12 +143,12 @@ public:
 private:
   struct jump_info
   {
-    jump_info(std::size_t shift=0,std::size_t width=0):
-      width_shift{
-        ((~(std::size_t(-1)<<width))<<8)
-        +shift
-      }{}
+    void set(std::size_t shift=0,std::size_t width=0)
+    {
+      width_shift=((~(std::size_t(-1)<<width))<<8)+shift;
+    }
 
+    std::size_t pos=0;
     std::size_t width_shift=0;
   };
   template<typename FwdIterator>
@@ -173,9 +173,7 @@ private:
 
     auto size_=static_cast<std::size_t>(std::distance(first,last));
     jsize_index=jump_size_policy::size_index(size_/lambda);
-    positions.resize(jump_size_policy::size(jsize_index));
-    positions.shrink_to_fit();
-    jumps.resize(positions.size());
+    jumps.resize(jump_size_policy::size(jsize_index));
     jumps.shrink_to_fit();
 
     /* first element <- empty buckets */
@@ -205,32 +203,33 @@ private:
       ++root.size;
     }
 
-    std::vector<std::size_t> offsets;
+    std::vector<std::size_t> positions;
     for(std::size_t i=0;i<buckets.size();++i){
       const auto& bucket=buckets[i];
       if(!bucket.size)continue;
 
-      positions[i]=capacity_;
       auto& jmp=jumps[i];      
+      jmp.pos=capacity_;
 
       for(unsigned char wd=0;wd<56;++wd){
         for(unsigned char sh=0;sh<64;++sh){
-          offsets.clear();
+          jmp.set(sh,wd);
+          positions.clear();
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
-            auto off=offset(pnode->hash,{sh,wd});
-            if(std::find(offsets.begin(),offsets.end(),off)!=offsets.end()){
+            auto pos=element_position(pnode->hash,jmp);
+            if(std::find(positions.begin(),positions.end(),pos)!=
+               positions.end()){
               goto next_sh;
             }
-            offsets.push_back(off);
+            positions.push_back(pos);
           }
-          jmp={sh,wd};
           capacity_+=std::size_t(1)<<wd;
           elements.resize(capacity_);
           mask.resize(capacity_);
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
             //auto pos=element_position(pnode->hash,jmp);
             //std::cout<<"("<<*pnode->it<<", ("<<jmp.pos<<","<<(int)jmp.shift<<","<<(int)jmp.width<<")) --> "<<pos<<"\n";
-            auto pos=element_position(pnode->hash,positions[i],jmp);
+            auto pos=element_position(pnode->hash,jmp);
             elements[pos]=*pnode->it;
             mask[pos]=1;
           }
@@ -250,22 +249,16 @@ private:
     return jump_size_policy::position(hash,jsize_index);
   }
 
-  std::size_t offset(std::size_t hash,jump_info jmp)const
+  static std::size_t element_position(std::size_t hash,const jump_info& jmp)
   {
-    return (hash>>(unsigned char)jmp.width_shift)&(jmp.width_shift>>8);
-  }
-
-  std::size_t element_position(
-    std::size_t hash,std::size_t pos,const jump_info& jmp)const
-  {
-    return pos+offset(hash,jmp);
+    return jmp.pos+
+           ((hash>>(unsigned char)jmp.width_shift)&(jmp.width_shift>>8));
   }
 
   hasher                   h;
   key_equal                pred;
   std::size_t              capacity_;
   std::size_t              jsize_index;
-  std::vector<std::size_t> positions;
   std::vector<jump_info>   jumps;
   element_array            elements;
   boost::dynamic_bitset<>  mask;
