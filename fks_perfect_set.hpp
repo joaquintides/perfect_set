@@ -208,13 +208,15 @@ private:
       const auto& bucket=buckets[sorted_bucket_indices[i]];
       if(!bucket.size)break; /* remaining buckets also empty*/
 
-      std::size_t max_off=boost::core::bit_ceil(bucket.size)-1,
-                  min_wd=boost::core::popcount(max_off);
+      std::size_t min_wd=
+        boost::core::popcount(boost::core::bit_ceil(bucket.size)-1);
 
       for(unsigned char sh=0;sh<=64-min_wd;++sh){
         for(unsigned char wd=min_wd;wd<64;++wd){
           jump_info jmp;
           jmp.set(sh,wd);
+
+          std::size_t max_off=(std::size_t(1)<<wd)-1;
 
           offsets.clear();
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
