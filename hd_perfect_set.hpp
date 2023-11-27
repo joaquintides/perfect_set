@@ -303,8 +303,7 @@ private:
       num_inserted+=bucket.size;
 #endif
       /* this calculation critically depends on displacement_size_policy */
-      displacements[sorted_bucket_indices[i]]=
-        {(pos<<size_index)-bucket.begin->hash,1};
+      displacements[sorted_bucket_indices[i]]={pos<<size_index,0};
       elements[pos]=*(bucket.begin->it);
       mask[pos]=false;
       pos=mask.find_next(pos);
