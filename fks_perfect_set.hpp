@@ -122,10 +122,13 @@ public:
   template<typename Key>
   BOOST_FORCEINLINE iterator find(const Key& x)const
   {
-    auto hash=h(x);
-    auto jpos=jump_position(hash);
-    auto pos=element_position(hash,positions[jpos],jumps[jpos]);
-    if(!pred(x,elements[pos]))pos=size_;
+    auto pos=size_;
+    if(pos){
+      auto hash=h(x);
+      auto jpos=jump_position(hash);
+      pos=element_position(hash,positions[jpos],jumps[jpos]);
+      if(!pred(x,elements[pos]))pos=size_;
+    }
     return elements.begin()+pos;
   }
 
@@ -249,17 +252,17 @@ private:
     return true;
   }
 
-  std::size_t jump_position(std::size_t hash)const
+  std::size_t inline jump_position(std::size_t hash)const
   {
     return jump_size_policy::position(hash,jsize_index);
   }
 
-  static std::size_t element_offset(std::size_t hash,const jump_info& jmp)
+  static inline std::size_t element_offset(std::size_t hash,const jump_info& jmp)
   {
     return (hash>>(unsigned char)jmp.ws)&(jmp.ws>>8);
   }
 
-  static std::size_t element_position(
+  static inline std::size_t element_position(
     std::size_t hash,std::size_t pos,const jump_info& jmp)
   {
     return pos+element_offset(hash,jmp);
