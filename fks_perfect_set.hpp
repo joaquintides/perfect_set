@@ -116,7 +116,6 @@ public:
     throw construction_failure{};
   }
 
-
   iterator begin()const{return elements.begin();}
   iterator end()const{return elements.begin()+size_;}
 
@@ -125,9 +124,8 @@ public:
   {
     auto hash=h(x);
     auto jpos=jump_position(hash);
-    auto pos=element_position(hash,jumps[jpos]);
+    auto pos=element_position(hash,positions[jpos],jumps[jpos]);
     if(!pred(x,elements[pos]))pos=size_;
-    else BOOST_UNORDERED_ASSUME(pos!=size_);
     return elements.begin()+pos;
   }
 
@@ -139,7 +137,6 @@ private:
       ws=((~(std::size_t(-1)<<width))<<8)+shift;
     }
 
-    std::size_t pos=0;
     std::size_t ws=0;
   };
   template<typename FwdIterator>
@@ -164,7 +161,9 @@ private:
 
     size_=static_cast<std::size_t>(std::distance(first,last));
     jsize_index=jump_size_policy::size_index(size_/lambda);
-    jumps.resize(jump_size_policy::size(jsize_index));
+    positions.resize(jump_size_policy::size(jsize_index));
+    positions.shrink_to_fit();
+    jumps.resize(positions.size());
     jumps.shrink_to_fit();
 
     elements.resize(size_);
@@ -199,46 +198,48 @@ private:
 
     boost::dynamic_bitset<>  mask;
     mask.resize(size_,true); /* true --> available */
-    std::vector<std::size_t> bucket_positions;
+    std::vector<std::size_t> offsets;
+
     for(std::size_t i=0;i<buckets.size();++i){
       const auto& bucket=buckets[sorted_bucket_indices[i]];
       if(!bucket.size)break; /* remaining buckets also empty*/
 
-      for(unsigned char wd=0;wd<56;++wd){
-        for(unsigned char sh=0;sh<64;++sh){
+      std::size_t max_off=boost::core::bit_ceil(bucket.size)-1,
+                  min_wd=boost::core::popcount(max_off);
+
+      for(unsigned char sh=0;sh<=64-min_wd;++sh){
+        for(unsigned char wd=min_wd;wd<56;++wd){
           jump_info jmp;
           jmp.set(sh,wd);
 
-          bucket_positions.clear();
+          offsets.clear();
           for(auto pnode=bucket.begin;pnode;pnode=pnode->next){
-            auto pos=element_position(pnode->hash,jmp);
-            if(std::find(bucket_positions.begin(),bucket_positions.end(),pos)!=
-               bucket_positions.end()){
-              goto next_sh;
+            auto off=element_offset(pnode->hash,jmp);
+            if(std::find(offsets.begin(),offsets.end(),off)!=offsets.end()){
+              goto next_wd;
             }
-            bucket_positions.push_back(pos);
+            offsets.push_back(off);
           }
 
-          for(std::size_t pos0=0;pos0<size_;++pos0){
-            for(auto pos:bucket_positions){
-              if(pos0+pos>=size_||!mask[pos0+pos])goto next_pos0;
+          for(std::size_t pos=0;pos+max_off<size_;++pos){
+            for(auto off:offsets){
+              if(pos+off>=size_||!mask[pos+off])goto next_pos;
             }
             {
               auto pnode=bucket.begin;
-              for(auto pos:bucket_positions){
-                elements[pos0+pos]=*(pnode->it);
-                mask[pos0+pos]=false;
+              for(auto off:offsets){
+                elements[pos+off]=*(pnode->it);
+                mask[pos+off]=false;
                 pnode=pnode->next;
               }
-              jmp.pos=pos0;
+              positions[sorted_bucket_indices[i]]=pos;
               jumps[sorted_bucket_indices[i]]=jmp;
               goto next_jmp;
             }
-          next_pos0:;
+          next_pos:;
           }
-          return false;
-          goto next_jmp;
-        next_sh:;
+          goto next_wd;
+        next_wd:;
         }
       }
       return false;
@@ -253,15 +254,22 @@ private:
     return jump_size_policy::position(hash,jsize_index);
   }
 
-  static std::size_t element_position(std::size_t hash,const jump_info& jmp)
+  static std::size_t element_offset(std::size_t hash,const jump_info& jmp)
   {
-    return jmp.pos+((hash>>(unsigned char)jmp.ws)&(jmp.ws>>8));
+    return (hash>>(unsigned char)jmp.ws)&(jmp.ws>>8);
+  }
+
+  static std::size_t element_position(
+    std::size_t hash,std::size_t pos,const jump_info& jmp)
+  {
+    return pos+element_offset(hash,jmp);
   }
 
   hasher                   h;
   key_equal                pred;
   std::size_t              size_;
   std::size_t              jsize_index;
+  std::vector<std::size_t> positions;
   std::vector<jump_info>   jumps;
   element_array            elements;
 };
