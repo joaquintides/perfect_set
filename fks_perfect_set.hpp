@@ -122,13 +122,10 @@ public:
   template<typename Key>
   BOOST_FORCEINLINE iterator find(const Key& x)const
   {
-    auto pos=size_;
-    if(pos){
-      auto hash=h(x);
-      auto jpos=jump_position(hash);
-      pos=element_position(hash,positions[jpos],jumps[jpos]);
-      if(!pred(x,elements[pos]))pos=size_;
-    }
+    auto hash=h(x);
+    auto jpos=jump_position(hash);
+    auto pos=element_position(hash,positions[jpos],jumps[jpos]);
+    if(!pred(x,elements[pos]))pos=size_;
     return elements.begin()+pos;
   }
 
@@ -137,11 +134,10 @@ private:
   {
     void set(std::size_t shift,std::size_t width)
     {
-      shl=64-shift-width;
-      shr=64-width;
+      ws=((~(std::size_t(-1)<<width))<<8)+shift;
     }
 
-    unsigned char shl=0,shr=64;
+    std::size_t ws=0;
   };
   template<typename FwdIterator>
   struct bucket_node
@@ -211,8 +207,8 @@ private:
       std::size_t min_wd=
         boost::core::popcount(boost::core::bit_ceil(bucket.size)-1);
 
-      for(unsigned char sh=0;sh<=64-min_wd;++sh){
-        for(unsigned char wd=min_wd;wd<64;++wd){
+      for(unsigned char sh=0;sh<64-min_wd;++sh){
+        for(unsigned char wd=min_wd;wd<56;++wd){
           jump_info jmp;
           jmp.set(sh,wd);
 
@@ -262,7 +258,7 @@ private:
 
   static inline std::size_t element_offset(std::size_t hash,const jump_info& jmp)
   {
-    return (hash<<jmp.shl)>>jmp.shr;
+    return (hash>>(unsigned char)jmp.ws)&(jmp.ws>>8);
   }
 
   static inline std::size_t element_position(
